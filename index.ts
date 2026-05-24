@@ -19,7 +19,7 @@ serve(async (req) => {
 
   console.log("Iniciando análisis con Gemini para el postulante ID:", postId)
 
-  // 2. Llamada a Gemini
+  // 2. Llamada a Gemini 3.5
   const result = await model.generateContent([
     "Extraé todo el texto completo del CV y proporcioná un resumen ejecutivo profesional.",
     { text: `URL del documento: ${cvUrl}` }
