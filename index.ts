@@ -6,11 +6,16 @@ const genAI = new GoogleGenerativeAI(Deno.env.get("GEMINI_API_KEY")!);
 
 serve(async (req) => {
   try {
-    const { filePath } = await req.json();
-    
-    // Normalización automática de la ruta: 
-    // Si la ruta viene como "cv/cv/archivo", la limpia a "cv/archivo" 
-    // o maneja la estructura que sea necesaria para que el Storage la encuentre.
+    // Intentamos obtener el body de forma segura
+    const body = await req.json().catch(() => ({}));
+    const filePath = body.filePath;
+
+    // Si no hay filePath, avisamos en lugar de romper
+    if (!filePath) {
+      return new Response(JSON.stringify({ error: "No se recibió filePath" }), { status: 400 });
+    }
+
+    // Normalización solo si filePath existe
     const cleanPath = filePath.replace("cv/cv/", "cv/");
     
     console.log("LOG: Procesando archivo en ruta:", cleanPath);
@@ -31,13 +36,13 @@ serve(async (req) => {
 
     const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
 
-    const prompt = `Analiza este documento de postulante. Extrae la información relevante y responde estrictamente en formato JSON: 
+    const prompt = `Analiza este documento. Extrae la información y responde en JSON: 
     {
-      "nombre": "Nombre completo",
-      "perfil": "Resumen breve del perfil profesional",
-      "experiencia": "Resumen de experiencia laboral",
-      "educacion": "Nivel educativo y formación",
-      "habilidades": ["habilidad1", "habilidad2"]
+      "nombre": "Nombre",
+      "perfil": "Perfil profesional",
+      "experiencia": "Experiencia",
+      "educacion": "Educación",
+      "habilidades": ["hab1", "hab2"]
     }`;
 
     const result = await model.generateContent([
