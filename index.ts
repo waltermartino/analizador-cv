@@ -20,35 +20,34 @@ serve(async (req) => {
     );
 
     // 1. Descarga
-    console.log("[PASO 2] Descargando...");
+    console.log("[PASO 2] Descargando archivo...");
     const { data, error } = await supabase.storage.from('cv').download(filePath);
     if (error) throw new Error("Error en descarga: " + error.message);
 
-    // 2. IA
-    console.log("[PASO 3] Consultando IA...");
+    // 2. IA - Transcripción pura
+    console.log("[PASO 3] Consultando IA para transcripción total...");
     const buffer = await data.arrayBuffer();
     const base64 = btoa(new Uint8Array(buffer).reduce((d, b) => d + String.fromCharCode(b), ''));
     const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
     
     const res = await model.generateContent([
-      "Analiza este CV y extrae: nombre, perfil, experiencia, educacion, habilidades. Devuelve solo JSON puro.",
+      "Transcribe todo el contenido de este CV a texto plano. Mantén toda la información original, no resumas, no omitas datos.",
       { inlineData: { data: base64, mimeType: data.type } }
     ]);
 
-    const jsonText = res.response.text().replace(/```json|```/g, "").trim();
-    console.log("[PASO 4] Respuesta IA recibida");
-    const json = JSON.parse(jsonText);
+    const textoCompleto = res.response.text().trim();
+    console.log("[PASO 4] Transcripción recibida. Longitud:", textoCompleto.length, "caracteres.");
 
-    // 3. Registro (Guardado eficiente en la columna existente)
-    console.log("[PASO 5] Guardando JSON en column_cv_texto_extraido...");
+    // 3. Registro - Guardado del texto completo
+    console.log("[PASO 5] Guardando texto completo en column_cv_texto_extraido...");
     const { error: dbError } = await supabase
       .from('postulantes')
-      .update({ column_cv_texto_extraido: JSON.stringify(json) })
+      .update({ column_cv_texto_extraido: textoCompleto }) // Guardamos el texto bruto
       .eq('id', postulanteId);
 
     if (dbError) throw new Error("Error en DB: " + dbError.message);
 
-    console.log("[PASO 6] ÉXITO TOTAL: Registro actualizado.");
+    console.log("[PASO 6] ÉXITO TOTAL: Registro actualizado con texto completo.");
     return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
 
   } catch (err) {
